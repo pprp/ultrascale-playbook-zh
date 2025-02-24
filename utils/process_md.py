@@ -51,6 +51,6 @@ def process_markdown_file(md_file_path, prefix):
 
 
 if __name__ == "__main__":
-    md_file_path = "/Users/peyton/Downloads/run_notion2typora/48ac0b29-067b-44b0-a767-f02e6f59588e_Export-c4b0d895-d32e-4a11-a33f-b752028cd991/part2 1a1b5962cea4809da4b6c4c1023f5c1a.md"
-    prefix = "part_2"  # 替换为实际使用的前缀
+    md_file_path = r"/Users/peyton/Workspace/ultrascale-playbook-zh/p4/p4 1a4b5962cea4801bbd42d05b396ff0e3.md"
+    prefix = "part_4"  # 替换为实际使用的前缀
     process_markdown_file(md_file_path, prefix)
