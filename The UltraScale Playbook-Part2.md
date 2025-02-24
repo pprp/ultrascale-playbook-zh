@@ -1,6 +1,4 @@
-# part2
-
-# **《超大规模操作手册：在 GPU 集群上训练 》Part2(SP,CP,PP,EP,5D)**
+# 《超大规模操作手册：在 GPU 集群上训练 》Part2(SP,CP,PP,EP,5D)
 
 作者：nanotron
 

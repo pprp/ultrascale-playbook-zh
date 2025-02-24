@@ -1,12 +1,10 @@
-# p3
-
-**《超大规模操作手册：在 GPU 集群上训练 》Part3(寻找最佳配置的GPU优化)**
+# 《超大规模操作手册：在 GPU 集群上训练 》Part3(寻找最佳配置的GPU优化)
 
 作者：nanotron
 
 校正：pprp
 
-![image.png](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_3_image.png)
+![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_3_image.png)
 
 # 寻找最佳训练配置
 
@@ -78,7 +76,7 @@
 
 所有以下基准测试均以序列长度为4096和Global Batch Size为1M tokens进行。我们收集了每个模型和集群大小的最佳配置，并在以下热图中进行了展示：
 
-![image.png](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_3_image%201.png)
+![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_3_image%201.png)
 
 > 编者注： GAS: Gradient Accumulation Steps; MBS: Micro Batch Size; MFU: Model FLOPs Utilization； 这张图非常宝贵，因为我们可以直接用来查询显存使用情况，比如当前有一个Node，我希望训练一个8B的模型，那么可以通过上图查询得到每张卡至少需要63GB显存，并且最优配置给出了，DP2 TP1 PP4 GAS128 Zero-1。
 > 
