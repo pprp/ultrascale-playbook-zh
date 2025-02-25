@@ -51,6 +51,6 @@ def process_markdown_file(md_file_path, prefix):
 
 
 if __name__ == "__main__":
-    md_file_path = r"/Users/peyton/Workspace/ultrascale-playbook-zh/p4/p4 1a4b5962cea4801bbd42d05b396ff0e3.md"
-    prefix = "part_4"  # 替换为实际使用的前缀
+    md_file_path = r"/Users/peyton/Workspace/ultrascale-playbook-zh/b518ef6f-c30b-480d-a5bf-4057c21c2249_Export-bd91db06-3b42-4267-8230-81a9d5fa01b2/P5 1a4b5962cea48050aa42f2849de48c68.md"
+    prefix = "part_5"  # 替换为实际使用的前缀
     process_markdown_file(md_file_path, prefix)
