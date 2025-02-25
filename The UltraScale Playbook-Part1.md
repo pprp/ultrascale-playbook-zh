@@ -1075,33 +1075,3 @@ class RowParallelLinear(nn.Module):
 [8] [https://www.determined.ai/blog/act-mem-2](https://www.determined.ai/blog/act-mem-2) 
 
 [9] Reducing Activation Recomputation in Large Transformer Models
-
-
-
-```mermaid
-gantt
-    title Depth-First 调度 (4个微批次, 2个GPU)
-    dateFormat  X
-    axisFormat T%X
-
-    section GPU 0 (第1-8层)
-    B1 前向  :b1f0, 1, 1
-    B1 反向  :b1b0, 3, 1
-    B2 前向  :b2f0, 5, 1
-    B2 反向  :b2b0, 7, 1
-    B3 前向  :b3f0, 9, 1
-    B3 反向  :b3b0, 11, 1
-    B4 前向  :b4f0, 13, 1
-    B4 反向  :b4b0, 15, 1
-
-    section GPU 1 (第9-16层)
-    B1 前向  :b1f1, 2, 1
-    B1 反向  :b1b1, 4, 1
-    B2 前向  :b2f1, 6, 1
-    B2 反向  :b2b1, 8, 1
-    B3 前向  :b3f1, 10, 1
-    B3 反向  :b3b1, 12, 1
-    B4 前向  :b4f1, 14, 1
-    B4 反向  :b4b1, 16, 1
-```
-
