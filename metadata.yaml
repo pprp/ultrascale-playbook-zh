@@ -1,0 +1,45 @@
+---
+title: '超大规模操作手册：在 GPU 集群上训练'
+subtitle: '从数据并行到张量并行的最佳实践'
+author: [nanotron]
+date: \today
+institute: '校正：pprp'
+keywords: [GPU, 分布式训练, 深度学习]
+subject: '深度学习'
+lang: zh-CN
+documentclass: ctexbook
+classoption: 
+  - UTF8
+  - oneside
+papersize: a4
+linestretch: 1.25
+fontsize: 11pt
+mainfont: 'PingFang SC'
+CJKmainfont: 'PingFang SC'
+sansfont: 'PingFang SC'
+monofont: 'Menlo'
+geometry:
+  - top=25mm
+  - bottom=25mm
+  - left=30mm
+  - right=30mm
+  - heightrounded
+header-includes:
+  - |
+    ```{=latex}
+    \usepackage{fancyhdr}
+    \pagestyle{fancy}
+    \fancyhf{}
+    \fancyhead[L]{\leftmark}
+    \fancyhead[R]{\rightmark}
+    \fancyfoot[C]{\thepage}
+    \renewcommand{\headrulewidth}{0.4pt}
+    \renewcommand{\footrulewidth}{0.4pt}
+    ```
+toc: true
+toc-depth: 3
+numbersections: true
+colorlinks: true
+linkcolor: NavyBlue
+urlcolor: NavyBlue
+---
