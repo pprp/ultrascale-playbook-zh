@@ -4,7 +4,6 @@
 
 ![img](./misc/image%200.png)
 
-
 ## 项目概述
 
 UltraScale Playbook 是一本关于规模化和增长的综合指南。本中文翻译项目包括：
@@ -18,6 +17,9 @@ UltraScale Playbook 是一本关于规模化和增长的综合指南。本中文
 
 - `The UltraScale Playbook-Part1.md`：第一部分的主要内容及中文翻译
 - `The UltraScale Playbook-Part2.md`：第二部分 GPU 集群训练相关内容及中文翻译
+- `The UltraScale Playbook-Part3.md`：第三部分内容及中文翻译
+- `The UltraScale Playbook-Part4.md`：第四部分内容及中文翻译
+- `The UltraScale Playbook-Part5.md`：第五部分并行编程速成内容及中文翻译
 
 ## CheatSheet
 
@@ -32,8 +34,6 @@ UltraScale Playbook 是一本关于规模化和增长的综合指南。本中文
 ## 内容概览
 
 ### Part 1
-
-
 
 第一部分主要介绍在GPU集群上训练大模型的基础概念和并行化策略：
 
@@ -67,6 +67,15 @@ UltraScale Playbook 是一本关于规模化和增长的综合指南。本中文
 - Expert Parallel (专家并行)：针对专家模型的并行策略
 - 5D Parallelism (5D并行)：综合性的并行训练方案
 
+### Part 5: 并行编程速成
+
+第五部分主要介绍了并行编程的基础知识和实践：
+
+- 集体操作（Collective Operation）：包括广播、全局归约、分散等基本操作
+- NCCL（NVIDIA Collective Communications Library）：NVIDIA的集体通信库详解
+- 性能分析与优化：使用PyTorch Profiler和NVIDIA Nsight Compute进行性能分析
+- 并行训练的数学模型：详细分析了通信开销和计算比率
+
 ## 翻译原则
 
 1. 在遵循中文语言习惯的同时保持原意
@@ -85,3 +94,58 @@ UltraScale Playbook 是一本关于规模化和增长的综合指南。本中文
 ## 版权说明
 
 请注意，虽然本翻译项目用于教育目的，但《The UltraScale Playbook》的原始内容仍保留其原有版权。本翻译项目旨在作为中文读者的补充学习资源。
+
+## 引用 
+
+```
+
+@misc{ultrascale_playbook,
+
+      title={The Ultra-Scale Playbook: Training LLMs on GPU Clusters},
+
+      author={Nouamane Tazi, Ferdinand Mom, Haojun Zhao, Phuc Nguyen, Mohamed Mekkouri, Leandro Werra, Thomas Wolf},
+
+      year={2025},
+
+}
+
+```
+
+## 生成 PDF
+
+本项目支持将 Markdown 文件转换为精美的 PDF 书籍。
+
+### 环境准备
+
+1. 安装 Pandoc：
+```bash
+brew install pandoc
+```
+
+2. 安装 LaTeX（选择以下之一）：
+```bash
+# 基础版本（推荐）
+brew install --cask basictex
+
+# 或完整版本
+brew install --cask mactex
+```
+
+### 生成 PDF
+
+运行以下命令生成 PDF：
+```bash
+pandoc metadata.yaml cover.md \
+  "The UltraScale Playbook-Part1.md" \
+  "The UltraScale Playbook-Part2.md" \
+  "The UltraScale Playbook-Part3.md" \
+  "The UltraScale Playbook-Part4.md" \
+  "The UltraScale Playbook-Part5.md" \
+  -o ultrascale-playbook.pdf \
+  --pdf-engine=xelatex \
+  --top-level-division=chapter
+```
+
+更多详细说明请参考：
+- [Markdown 转 PDF 指南](./docs/markdown-转-pdf指南.md)
+- [Markdown to PDF Guide](./docs/markdown-to-pdf.md)

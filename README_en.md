@@ -4,7 +4,6 @@ This repository contains the Chinese translation of "The UltraScale Playbook" al
 
 ![img](./misc/image%200.png)
 
-
 ## Project Overview
 
 The UltraScale Playbook is a comprehensive guide that covers various aspects of scaling and growth. This Chinese translation project includes:
@@ -27,8 +26,6 @@ The UltraScale Playbook is a comprehensive guide that covers various aspects of 
 ![](./misc/image%208.png)
 ![](./misc/image%209.png)
 ![](./misc/image%2010.png)
-
-
 
 ## Content Overview
 
@@ -84,3 +81,14 @@ If you find any issues or have suggestions for improvements, please feel free to
 ## License
 
 Please note that while this translation is provided for educational purposes, the original content of "The UltraScale Playbook" retains its original copyright. This translation project is meant to serve as a supplementary resource for Chinese readers.
+
+
+## Citation
+
+```
+@misc{ultrascale_playbook,
+      title={The Ultra-Scale Playbook: Training LLMs on GPU Clusters},
+      author={Nouamane Tazi, Ferdinand Mom, Haojun Zhao, Phuc Nguyen, Mohamed Mekkouri, Leandro Werra, Thomas Wolf},
+      year={2025},
+}
+```
