@@ -1,14 +1,14 @@
 ---
 title: '超大规模操作手册：在 GPU 集群上训练'
 subtitle: '从数据并行到张量并行的最佳实践'
-author: [nanotron]
+author: [nanotron, pprp]
 date: \today
 institute: '校正：pprp'
 keywords: [GPU, 分布式训练, 深度学习]
 subject: '深度学习'
 lang: zh-CN
 documentclass: ctexbook
-classoption: 
+classoption:
   - UTF8
   - oneside
 papersize: a4
@@ -43,3 +43,4 @@ colorlinks: true
 linkcolor: NavyBlue
 urlcolor: NavyBlue
 ---
+
