@@ -1,4 +1,3 @@
-
 # 概览
 
 > 成排的GPU集群发出整齐划一的轰鸣，这正是训练当代顶尖AI模型所需的场景——一场算力交响曲的演绎，而这般景象在不久前还只是顶尖实验室的专利。开源运动虽然打破了技术垄断，却未能完全消弭核心壁垒。如今，任何人都能自由下载最新的Llama或DeepSeek模型，研读其技术文档和实验报告。但真正的精要所在——那套驾驭GPU集群训练庞然智能体的工程体系，那些在分布式系统中精妙调谐万千计算单元的核心技艺——仍如深藏云端的圣殿，其奥义散落在晦涩难懂的学术论文与彼此割裂的私有代码库之间，构筑着难以逾越的技术鸿沟。
@@ -60,11 +59,53 @@
 
 ![](https://raw.githubusercontent.com/pprp/blogimagebed/main/image%207.png)
 
-术语表：
+**术语表：**
 
-![](https://raw.githubusercontent.com/pprp/blogimagebed/main/image%208.png)
+### 并行化术语：
 
-![](https://raw.githubusercontent.com/pprp/blogimagebed/main/image%209.png)
+- **tp**：张量并行度
+- **pp**：流水线并行度
+- **dp**：数据并行度
+- **cp**：上下文并行度
+- **ep**：专家并行度
+- **dp_if_zero1/2/3**：使用ZeRO阶段时的有效数据并行度
+  *（如果使用ZeRO2，则表示dp_if_zero1和dp_if_zero2都使用）*
+
+### Batch Size术语：
+
+- **mbs**：每个GPU的微批量大小
+- **gas**：梯度累积步数
+- **mseqlen**：每个GPU的序列长度（在CP之后）
+- **gbs**：全局批量大小 = mbs * dp * gas * mseqlen
+
+
+### 内存术语：
+
+- **model_bf16**：bfloat16格式的模型参数 = `model_bf16(model_config.tp.pp.dp_if_zero3)`
+- **model_fp32**：float32格式的模型参数（用于优化器） = `2 * model_bf16 / dp_if_zero1`
+- **grads_fp32**：float32格式的梯度 = `2 * model_bf16 / dp_if_zero2`
+- **optimstates**：优化器状态（例如，Adam动量/方差）在float32中 = `4 * model_bf16 / dp_if_zero1`
+- **activs**：前向传递中的激活张量 = `activs(model_config.mseqlen, mbs, tp, cp, pp, dp_if_zero3)`
+
+### 实用公式：
+
+每个GPU在训练步骤中的峰值内存使用量可以近似为：
+
+$$
+\text{peak\_memory} = \text{model\_bf16} + \text{model\_fp32} + \text{grads\_fp32} + \text{optimstates} + \text{activs}
+$$ 
+
+其中
+
+$$
+\text{model\_bf16} = \text{bf16\_bytes} \times \text{num\_params} = 2 \times \text{num\_layers} \times 16 \times \text{hidden\_size}^2 
+$$
+
+每个GPU在训练步骤中的计算量可以近似为：
+
+$$ 
+\text{compute} = 6 \times \text{model\_bf16} \times \text{mbs} \times \text{seq} \times \text{gas}
+$$
 
 ![](https://raw.githubusercontent.com/pprp/blogimagebed/main/image%2010.png)
 
@@ -416,7 +457,7 @@ class DataParallelNaive(nn.Module):
         for p in self.module.parameters():
             if p.requires_grad is True:
                 p.register_hook(hook)
-              
+            
     def _allreduce_grads(self, grad):
         """
         Performs an all-reduce operation to synchronize gradients across multiple processes.  
@@ -460,7 +501,7 @@ class DataParallelBucket(nn.Module):
     def __init__(self, module, bucket_cap_mb=25, grad_type = torch.float32):
         """
         Initialize the DataParallelBucket module.
-      
+    
         Args:
             module (nn.Module): The model to be parallelized.
             process_group: The process group for gradient synchronization, which can be either 
@@ -477,7 +518,7 @@ class DataParallelBucket(nn.Module):
         self.bucket_manager = BucketManager(module.parameters(), pgm.process_group_manager.cp_dp_group, bucket_size, grad_type)
         self.register_backward_hook()
         self._post_backward_callback_set = False # whether the callback for wait gradient synchronization is set
-      
+    
     def forward(self, *inputs, **kwargs):
         return self.module(*inputs, **kwargs)
 
@@ -487,13 +528,13 @@ class DataParallelBucket(nn.Module):
     def register_backward_hook(self):
         """
         Registers a backward hook to manually accumulate and synchronize gradients.
-      
+    
         This hook serves two main purposes:
         1. PyTorch does not natively support gradient accumulation with mixed precision.
         2. After gradient accumulation, it flags parameters as ready for synchronization.
-      
+    
         The gradient accumulation functions are stored to prevent them from going out of scope.
-      
+    
         References:
         - https://github.com/NVIDIA/Megatron-LM/issues/690
         - https://pytorch.org/docs/stable/generated/torch.autograd.graph.Node.register_hook.html
@@ -508,7 +549,7 @@ class DataParallelBucket(nn.Module):
                 grad_acc_fn = param_tmp.grad_fn.next_functions[0][0]
                 grad_acc_fn.register_hook(self._make_param_hook(param, self.bucket_manager))
                 self.grad_accs.append(grad_acc_fn)
-              
+            
     def _make_param_hook(self, param: torch.nn.Parameter,bucket_manager: BucketManager):
         """
         Creates the a hook for each parameter to handle gradient accumulation and synchronization.
@@ -524,7 +565,7 @@ class DataParallelBucket(nn.Module):
                 assert param.grad is not None
                 param.main_grad.add_(param.grad.data) # accumulate the gradients
                 param.grad = None
-              
+            
                 # skip the gradient synchronization (gradient accumulation/PP micro batches)
                 if self.require_backward_grad_sync:
                     # Add a callback to wait for gradient synchronization. Ensures the callback is added only once.
@@ -532,7 +573,7 @@ class DataParallelBucket(nn.Module):
                     if not self._post_backward_callback_set:
                         Variable._execution_engine.queue_callback(self._post_backward)
                         self._post_backward_callback_set = True
-                      
+                    
                     # mark the parameter as ready for gradient synchronization. 
                     bucket_manager.mark_param_as_ready(param) 
         return param_hook
@@ -543,12 +584,12 @@ class DataParallelBucket(nn.Module):
         self.require_backward_grad_sync = False
         yield
         self.require_backward_grad_sync = True
-      
+    
     def _post_backward(self):
         """
         A post-backward callback that waits for gradient synchronization to finish, then copies 
         the synchronized gradients back to the parameters' grad attribute.
-      
+    
         This method is called after the backward pass and before the optimizer step.
         """
         self.bucket_manager.wait()
@@ -844,13 +885,13 @@ class ColumnParallelLinear(torch.nn.Module):
             device=self.weight.device,
             requires_grad=False
         )
-      
+    
         # Calculate bound based on master weight's input dimension
         k = 1 / master_weight.size(1)
         bound = math.sqrt(k)
         torch.nn.init.uniform_(master_weight, -bound, bound)
         # 这里随机初始化权重，模拟主权重
-      
+    
         # Split the model into size of self.output_size_per_partition
         # 这里执行对weight的分片
         weight_list = torch.split(master_weight, self.output_size_per_partition, dim=0)
@@ -939,12 +980,12 @@ class RowParallelLinear(nn.Module):
             device=self.weight.device,
             requires_grad=False
         )
-      
+    
         # Calculate bound based on master weight's input dimension
         k = 1 / master_weight.size(1)
         bound = math.sqrt(k)  
         torch.nn.init.uniform_(master_weight, -bound, bound)
-      
+    
         # Split the model into size of self.input_size_per_partition
         weight_list = torch.split(master_weight, self.input_size_per_partition, dim=1)
         # 在这里切分weight，分为TP rank份
@@ -1025,7 +1066,7 @@ class RowParallelLinear(nn.Module):
 >
 > 编者注：在张量并行训练中，每个设备（rank）通过all-gather操作获取相同的激活值后，层归一化（layer normalization）的输入是相同的。因此，每个设备计算的层归一化权重（gamma和beta）的梯度是相同的，不需要额外的 all-reduce 操作来同步梯度，因为它们已经自然一致。这是因为所有设备基于相同的输入和梯度计算，梯度本身就是同步的。
 
-### Reference
+### 参考文献
 
 [1] [https://huggingface.co/spaces/HuggingFaceFW/blogpost-fineweb-v1](https://huggingface.co/spaces/HuggingFaceFW/blogpost-fineweb-v1)
 
@@ -1278,7 +1319,7 @@ def train_step_pipeline_afab(model, data_loader, tensor_shapes, device, dtype):
     logging_loss: torch.float32 = 0.0
     input_tensors, output_tensors = [], []
     requires_grad_sync = pgm.process_group_manager.cp_dp_world_size > 1
-	
+
 		# 从这里开始分前向的micro batch
     for _ in range(data_loader.grad_acc_steps): # All forward passes
         input_tensor = pipeline_communicate(operation='recv_forward', shapes=tensor_shapes, device=device, dtype=dtype)
@@ -1286,7 +1327,7 @@ def train_step_pipeline_afab(model, data_loader, tensor_shapes, device, dtype):
         batch["hidden_states"] = input_tensor.to(device) if input_tensor is not None else input_tensor
         output_tensor = model.forward(input_ids=batch["input_ids"].to(device), position_ids=batch["position_ids"].to(device), hidden_states=batch["hidden_states"])
         pipeline_communicate(operation='send_forward', tensor=output_tensor, device=device, dtype=dtype)
-      
+    
         # calculate loss on the last stage
         if pgm.process_group_manager.pp_is_last_stage:
             output_tensor = F.cross_entropy(output_tensor.transpose(1, 2), batch["target_ids"].to(device), reduction='mean')
@@ -1344,7 +1385,7 @@ def train_step_pipeline_1f1b(model, data_loader, tensor_shapes, device, dtype):
         batch = next(data_loader)
         batch["hidden_states"] = input_tensor.to(device) if input_tensor is not None else input_tensor
         output_tensor = model.forward(input_ids=batch["input_ids"].to(device), position_ids=batch["position_ids"].to(device), hidden_states=batch["hidden_states"])
-      
+    
         # calculate loss on the last stage
         if pgm.process_group_manager.pp_is_last_stage:
             output_tensor = F.cross_entropy(output_tensor.transpose(1, 2), batch["target_ids"].to(device), reduction='mean')
@@ -1372,13 +1413,13 @@ def train_step_pipeline_1f1b(model, data_loader, tensor_shapes, device, dtype):
         input_tensors.append(input_tensor)
         output_tensors.append(output_tensor)
         input_tensor, output_tensor = input_tensors.pop(0), output_tensors.pop(0)
-      
+    
         # Trigger gradient sync on the last microbatch but only when last rank (the one that has num_warmup_microbatches = 0) has finished computing its backward pass.
         if num_warmup_microbatches == 0 and is_last_iteration:
             model.require_backward_grad_sync = True
 
         input_tensor_grad = model.backward(input_tensor, output_tensor, output_tensor_grad)
-      
+    
         if is_last_iteration:
             input_tensor = None
             pipeline_communicate(operation='send_backward', tensor=input_tensor_grad, device=device, dtype=dtype)
@@ -1599,7 +1640,7 @@ MoE 层的设计使其能够在专家（expert）维度上轻松实现并行计�
 
 显然，这些技术都不是解决所有问题的灵丹妙药，我们经常需要以某种方式组合它们。我们是否可以制定一些规则，帮助我们找到选择和组合它们的良好起点？这将是我们下一节的主题。
 
-## Reference:
+## 参考文献:
 
 [1] [https://huggingface.co/spaces/nanotron/ultrascale-playbook](https://huggingface.co/spaces/nanotron/ultrascale-playbook)
 
@@ -1724,7 +1765,7 @@ MoE 层的设计使其能够在专家（expert）维度上轻松实现并行计�
 
 回顾我们迄今为止的讨论，我们的许多讨论都依赖于一个关键假设 - **即可以在GPU上有效地重叠计算和通信，而不会对计算吞吐量产生影响**。现实情况更加微妙。当使用像NCCL send/recv这样的常见通信原语时，我们面临计算资源和通信资源之间的隐藏竞争，因为通信核心通常会使用相同的**GPU流处理器（SM），这些SM用于计算，导致在通信与计算重叠时吞吐量降低**。要真正优化分布式训练，需要更深入地了解GPU架构本身。
 
-## Reference
+## 参考文献
 
 [1] [https://github.com/huggingface/nanotron](https://github.com/huggingface/nanotron)
 
@@ -1764,7 +1805,7 @@ GPU的目标是**通过利用计算/内存的这种分层组织，尽可能并�
 要运行内核，你还需要一个特定的代码部分，称为**主机代码 Host Code**，它在CPU/主机上执行，并负责准备数据分配和加载数据和代码。
 
 ```cpp
-// Host code              
+// Host code            
 void vecAdd(float* h_A, float *h_B, float *h_c, int n) {
     // Allocate vectors in device memory
     int size = n * sizeof(float);
@@ -2023,7 +2064,7 @@ C[localRow * N + localCol] = sum;
 
 在写入或改进**自定义内核**时，一个最重要的考虑因素：**最小化控制分歧 Minimizing Control Divergence**。
 
-### 最小化控制分歧 
+### 最小化控制分歧
 
 流多处理器（SM）被设计为使用**单指令多数据（SIMD）**模型执行 warp 中的所有线程。这意味着在任何给定时刻，**一个指令同时为warp中的所有线程获取和执行**。当执行warp时，其中的线程在数据的不同段上操作，但遵循相同的指令，因此得名**单指令多数据**。SIMD的主要优势在于其效率；负责指令获取和调度的控制硬件在多个执行单元之间共享。**这种设计最小化了与控制功能相关的硬件开销，使得更大比例的硬件专注于提高算术吞吐量**。
 
@@ -2185,7 +2226,7 @@ Flash Attention 是一个典型案例，展示了当深入考虑当前GPU加速�
 
 我们希望这本书能帮助你入门分布式训练，并希望你能训练出下一代优秀的模型！
 
-## Reference
+## 参考文献
 
 [1] [https://resources.nvidia.com/en-us-tensor-core](https://resources.nvidia.com/en-us-tensor-core)
 
@@ -2878,7 +2919,7 @@ $$
 
 > 编者注：全书结束，感谢阅读。
 
-## Reference
+## 参考文献
 
 [1] [https://pytorch.org/docs/stable/distributed.html#torch.distributed.ReduceOp](https://pytorch.org/docs/stable/distributed.html#torch.distributed.ReduceOp)
 

@@ -1,7 +1,7 @@
 ---
 title: '超大规模操作手册：在 GPU 集群上训练'
-subtitle: '从数据并行到张量并行的最佳实践'
-author: [nanotron, pprp]
+subtitle: 'GiantPandaCV公众号'
+author: [原作者:nanotron, 翻译:pprp]
 date: \today
 institute: '校正：pprp'
 keywords: [GPU, 分布式训练, 深度学习]
@@ -21,8 +21,8 @@ monofont: 'Menlo'
 geometry:
   - top=25mm
   - bottom=25mm
-  - left=30mm
-  - right=30mm
+  - left=25mm
+  - right=25mm
   - heightrounded
 header-includes:
   - |
@@ -35,6 +35,11 @@ header-includes:
     \fancyfoot[C]{\thepage}
     \renewcommand{\headrulewidth}{0.4pt}
     \renewcommand{\footrulewidth}{0.4pt}
+    \usepackage{fvextra}
+    \DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\},breaklines=true,breakanywhere=true,breakautoindent=false}
+    \usepackage{etoolbox}
+    \BeforeBeginEnvironment{verbatim}{\footnotesize}
+    \BeforeBeginEnvironment{Highlighting}{\footnotesize}
     ```
 toc: true
 toc-depth: 3

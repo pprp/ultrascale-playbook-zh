@@ -3,6 +3,10 @@
 export PATH=$PATH:/usr/local/texlive/2024basic/bin/universal-darwin
 export PATH=$PATH:/Library/TeX/texbin
 pandoc metadata.yaml "docs/The UltraScale Playbook.md" \
-     -o ultrascale-playbook.pdf \
+     -o ultrascale-playbook-zh.pdf \
      --pdf-engine=xelatex \
-     --top-level-division=chapter
+     --top-level-division=chapter \
+     --highlight-style=tango \
+     -V colorlinks=true \
+     -V linkcolor=blue \
+     --wrap=auto
