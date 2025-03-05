@@ -2258,7 +2258,7 @@ Flash Attention 是一个典型案例，展示了当深入考虑当前GPU加速�
 
 现在，我们有许多独立的节点，可以是CPU核心、GPU或计算节点。每个节点执行一些计算，然后我们希望将结果或其部分传输到其他节点，用于下一个计算步骤（t+1）。
 
-![image.png](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%201.png)
+![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%201.png)
 
 也许我们需要将一个节点的结果发送到所有其他节点，或者需要汇总每个节点的所有中间结果以报告总体结果。通常情况下，有一个具有**显著地位的节点**在操作中起到核心作用，在这里用 `root`表示，它是某些操作的目标或源。让我们从最简单的原语之一开始：广播操作 Broadcast。
 
@@ -2266,7 +2266,7 @@ Flash Attention 是一个典型案例，展示了当深入考虑当前GPU加速�
 
 一个非常常见的模式是，你在节点1上有一些数据，并希望与所有其他节点共享数据，以便它们可以使用数据进行一些计算。广播操作正是做到了这一点：
 
-![image.png](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%202.png)
+![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%202.png)
 
 PyTorch原生提供了集体操作 Collective Operation，因此可以很容易地编写一个小例子来演示广播是如何工作的。我们首先需要使用 `dist.init_process_group`初始化一个进程组，设置通信后端（稍后我们将讨论NCCL），确定存在多少个 Workers（aka Nodes），并为每个工作者分配一个Rank（我们可以用 `dist.get_rank`获取）。最后，它在工作者之间建立连接。
 
@@ -2310,7 +2310,7 @@ After broadcast on rank 2: tensor([1., 2., 3., 4., 5.], device='cuda:2')
 
 归约模式 `Reduce` 是分布式数据处理中最基本的模式之一。其思想是通过一个函数 `f()`（例如求和或平均）来组合每个节点上的数据。在归约 Reduce 的例子中，结果仅发送到 `root`，而在全局归约 `AllReduce` 情况下，结果广播到所有节点：
 
-![image.png](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%203.png)
+![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%203.png)
 
 当然，并不存在一种神奇的“自由运行”节点，能够独自完成这样的运算。一般来说，在节点所构成的环形 Ring 或树形 Tree 结构中，每个节点都会进行一部分计算。下面举个简单的例子：假设我们要在每个节点上计算一组数字的总和，并且这些节点以环形方式连接。第一个节点将自身的数字发送给相邻节点，该相邻节点会把接收到的数字与自己的数字相加，然后再转发给下一个相邻节点。当沿着节点环完成一轮传递后，第一个节点将会收到总和。
 
@@ -2371,7 +2371,7 @@ After all_reduce on rank 2: tensor([6., 6., 6., 6., 6.], device='cuda:2')
 
 Gather和AllGather与Broadcast非常相似，因为它们允许在节点之间分发数据而不修改。与Broadcast的主要区别在于，我们**不需要从一个节点向所有其他节点共享一个值(aka Broadcast)**，而是**每个节点都有一个我们希望收集所有数据的个体数据块（aka Gather）**或在所有节点上收集所有数据的个体数据块（在AllGather的情况下）。一图胜千言，让我们看看：
 
-![image.png](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%204.png)
+![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%204.png)
 
 请注意，虚线表示某些数据实际上根本不移动（因为它已经存在于节点上）。
 
@@ -2453,7 +2453,7 @@ After all_gather on rank 2: [tensor([1., 1., 1., 1., 1.], device='cuda:2'),
 
 ReduceScatter模式略微复杂：想象一下，在Reduce情况下应用操作，但我们不仅将结果移动到一个节点，还将其均匀分布到所有节点：
 
-![image.png](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%205.png)
+![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%205.png)
 
 Scatter操作在代码中的表示方式与Gather相反：我们准备源数据作为我们希望分发的张量列表，而不是准备一个张量列表作为目标。还需要指定 `src`：
 
@@ -2547,11 +2547,11 @@ After ReduceScatter on rank 2: tensor([ 36., 288.], device='cuda:2')
 
 > 编者注：以下两张均为gif图，建议访问网站来得到更好的阅读体验
 
-![image.png](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%206.png)
+![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%206.png)
 
 接下来的动画展示了AllGather步骤，在此过程结束时，每个GPU获取了AllReduce操作的完整结果(即上文提到的：AllReduce=ReduceScatter + AllGather)：
 
-![image.png](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%207.png)
+![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%207.png)
 
 你可能已经注意到，在reduce-scatter和all-gather步骤中，每个GPU发送和接收值 $N−1$次。每个GPU每次传输发送 $K/N$ 个值，其中 *K* 是数组长度。因此，每个GPU发送和接收的总数据量为 $2×(N−1)×K/N$。当 *N*（GPU的数量）较大时，每个GPU发送和接收的总数据量约为2×K，其中 *K*是总参数数量。
 
@@ -2568,7 +2568,7 @@ After ReduceScatter on rank 2: tensor([ 36., 288.], device='cuda:2')
 
 Barrier是一种简单的操作，用于同步所有节点。直到所有节点都到达Barrier之前，Barrier不会被解除。然后才能继续进行进一步的计算：
 
-![image.png](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%208.png)
+![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%208.png)
 
 我们可以通过在每个节点上设置不同的睡眠时间来轻松模拟延迟的节点，然后看看它们通过Barrier所需的时间：
 
@@ -2674,7 +2674,7 @@ print(p.key_averages().table(sort_by="cuda_time_total", row_limit=8))
 
 这将打印按总CUDA时间排序的汇总分析结果表，输出如下：
 
-![image.png](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%209.png)
+![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%209.png)
 
 你还可以尝试在 `chrome://tracing/` 上检查跟踪：
 
@@ -2684,7 +2684,7 @@ print(p.key_averages().table(sort_by="cuda_time_total", row_limit=8))
 
 放大后，可以观察调用 `layer_norm` 时操作流程的跟踪：
 
-![image.png](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%2010.png)
+![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%2010.png)
 
 序列从CPU（上部分）开始，使用 `aten::layer_norm`，然后转到 `aten::native_layer_norm`，最后过渡到 `cudaLaunchKernel`。从那里，我们进入GPU，调用 `vectorized_layer_norm_kernel` 内核。
 
@@ -2705,7 +2705,7 @@ ncu --set full -o output python layer_norm.py
 
 然后使用Nsight Compute打开文件 `output.ncu-rep`，你将看到类似于以下的视图：
 
-![image.png](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%2011.png)
+![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%2011.png)
 
 其中清晰地显示了关于计算和内存利用率的警告，以及如何优化内核以实现最大占用率。
 
