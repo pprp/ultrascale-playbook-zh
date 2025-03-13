@@ -1,3 +1,5 @@
+[toc]
+
 # 概览
 
 > 成排的GPU集群发出整齐划一的轰鸣，这正是训练当代顶尖AI模型所需的场景——一场算力交响曲的演绎，而这般景象在不久前还只是顶尖实验室的专利。开源运动虽然打破了技术垄断，却未能完全消弭核心壁垒。如今，任何人都能自由下载最新的Llama或DeepSeek模型，研读其技术文档和实验报告。但真正的精要所在——那套驾驭GPU集群训练庞然智能体的工程体系，那些在分布式系统中精妙调谐万千计算单元的核心技艺——仍如深藏云端的圣殿，其奥义散落在晦涩难懂的学术论文与彼此割裂的私有代码库之间，构筑着难以逾越的技术鸿沟。
@@ -78,7 +80,6 @@
 - **mseqlen**：每个GPU的序列长度（在CP之后）
 - **gbs**：全局批量大小 = mbs * dp * gas * mseqlen
 
-
 ### 内存术语：
 
 - **model_bf16**：bfloat16格式的模型参数 = `model_bf16(model_config.tp.pp.dp_if_zero3)`
@@ -93,17 +94,17 @@
 
 $$
 \text{peak\_memory} = \text{model\_bf16} + \text{model\_fp32} + \text{grads\_fp32} + \text{optimstates} + \text{activs}
-$$ 
+$$
 
 其中
 
 $$
-\text{model\_bf16} = \text{bf16\_bytes} \times \text{num\_params} = 2 \times \text{num\_layers} \times 16 \times \text{hidden\_size}^2 
+\text{model\_bf16} = \text{bf16\_bytes} \times \text{num\_params} = 2 \times \text{num\_layers} \times 16 \times \text{hidden\_size}^2
 $$
 
 每个GPU在训练步骤中的计算量可以近似为：
 
-$$ 
+$$
 \text{compute} = 6 \times \text{model\_bf16} \times \text{mbs} \times \text{seq} \times \text{gas}
 $$
 
@@ -457,7 +458,7 @@ class DataParallelNaive(nn.Module):
         for p in self.module.parameters():
             if p.requires_grad is True:
                 p.register_hook(hook)
-            
+        
     def _allreduce_grads(self, grad):
         """
         Performs an all-reduce operation to synchronize gradients across multiple processes.  
@@ -501,7 +502,7 @@ class DataParallelBucket(nn.Module):
     def __init__(self, module, bucket_cap_mb=25, grad_type = torch.float32):
         """
         Initialize the DataParallelBucket module.
-    
+  
         Args:
             module (nn.Module): The model to be parallelized.
             process_group: The process group for gradient synchronization, which can be either 
@@ -518,7 +519,7 @@ class DataParallelBucket(nn.Module):
         self.bucket_manager = BucketManager(module.parameters(), pgm.process_group_manager.cp_dp_group, bucket_size, grad_type)
         self.register_backward_hook()
         self._post_backward_callback_set = False # whether the callback for wait gradient synchronization is set
-    
+  
     def forward(self, *inputs, **kwargs):
         return self.module(*inputs, **kwargs)
 
@@ -528,13 +529,13 @@ class DataParallelBucket(nn.Module):
     def register_backward_hook(self):
         """
         Registers a backward hook to manually accumulate and synchronize gradients.
-    
+  
         This hook serves two main purposes:
         1. PyTorch does not natively support gradient accumulation with mixed precision.
         2. After gradient accumulation, it flags parameters as ready for synchronization.
-    
+  
         The gradient accumulation functions are stored to prevent them from going out of scope.
-    
+  
         References:
         - https://github.com/NVIDIA/Megatron-LM/issues/690
         - https://pytorch.org/docs/stable/generated/torch.autograd.graph.Node.register_hook.html
@@ -549,7 +550,7 @@ class DataParallelBucket(nn.Module):
                 grad_acc_fn = param_tmp.grad_fn.next_functions[0][0]
                 grad_acc_fn.register_hook(self._make_param_hook(param, self.bucket_manager))
                 self.grad_accs.append(grad_acc_fn)
-            
+        
     def _make_param_hook(self, param: torch.nn.Parameter,bucket_manager: BucketManager):
         """
         Creates the a hook for each parameter to handle gradient accumulation and synchronization.
@@ -565,7 +566,7 @@ class DataParallelBucket(nn.Module):
                 assert param.grad is not None
                 param.main_grad.add_(param.grad.data) # accumulate the gradients
                 param.grad = None
-            
+        
                 # skip the gradient synchronization (gradient accumulation/PP micro batches)
                 if self.require_backward_grad_sync:
                     # Add a callback to wait for gradient synchronization. Ensures the callback is added only once.
@@ -573,7 +574,7 @@ class DataParallelBucket(nn.Module):
                     if not self._post_backward_callback_set:
                         Variable._execution_engine.queue_callback(self._post_backward)
                         self._post_backward_callback_set = True
-                    
+                
                     # mark the parameter as ready for gradient synchronization. 
                     bucket_manager.mark_param_as_ready(param) 
         return param_hook
@@ -584,12 +585,12 @@ class DataParallelBucket(nn.Module):
         self.require_backward_grad_sync = False
         yield
         self.require_backward_grad_sync = True
-    
+  
     def _post_backward(self):
         """
         A post-backward callback that waits for gradient synchronization to finish, then copies 
         the synchronized gradients back to the parameters' grad attribute.
-    
+  
         This method is called after the backward pass and before the optimizer step.
         """
         self.bucket_manager.wait()
@@ -885,13 +886,13 @@ class ColumnParallelLinear(torch.nn.Module):
             device=self.weight.device,
             requires_grad=False
         )
-    
+  
         # Calculate bound based on master weight's input dimension
         k = 1 / master_weight.size(1)
         bound = math.sqrt(k)
         torch.nn.init.uniform_(master_weight, -bound, bound)
         # 这里随机初始化权重，模拟主权重
-    
+  
         # Split the model into size of self.output_size_per_partition
         # 这里执行对weight的分片
         weight_list = torch.split(master_weight, self.output_size_per_partition, dim=0)
@@ -980,12 +981,12 @@ class RowParallelLinear(nn.Module):
             device=self.weight.device,
             requires_grad=False
         )
-    
+  
         # Calculate bound based on master weight's input dimension
         k = 1 / master_weight.size(1)
         bound = math.sqrt(k)  
         torch.nn.init.uniform_(master_weight, -bound, bound)
-    
+  
         # Split the model into size of self.input_size_per_partition
         weight_list = torch.split(master_weight, self.input_size_per_partition, dim=1)
         # 在这里切分weight，分为TP rank份
@@ -1327,7 +1328,7 @@ def train_step_pipeline_afab(model, data_loader, tensor_shapes, device, dtype):
         batch["hidden_states"] = input_tensor.to(device) if input_tensor is not None else input_tensor
         output_tensor = model.forward(input_ids=batch["input_ids"].to(device), position_ids=batch["position_ids"].to(device), hidden_states=batch["hidden_states"])
         pipeline_communicate(operation='send_forward', tensor=output_tensor, device=device, dtype=dtype)
-    
+  
         # calculate loss on the last stage
         if pgm.process_group_manager.pp_is_last_stage:
             output_tensor = F.cross_entropy(output_tensor.transpose(1, 2), batch["target_ids"].to(device), reduction='mean')
@@ -1385,7 +1386,7 @@ def train_step_pipeline_1f1b(model, data_loader, tensor_shapes, device, dtype):
         batch = next(data_loader)
         batch["hidden_states"] = input_tensor.to(device) if input_tensor is not None else input_tensor
         output_tensor = model.forward(input_ids=batch["input_ids"].to(device), position_ids=batch["position_ids"].to(device), hidden_states=batch["hidden_states"])
-    
+  
         # calculate loss on the last stage
         if pgm.process_group_manager.pp_is_last_stage:
             output_tensor = F.cross_entropy(output_tensor.transpose(1, 2), batch["target_ids"].to(device), reduction='mean')
@@ -1413,13 +1414,13 @@ def train_step_pipeline_1f1b(model, data_loader, tensor_shapes, device, dtype):
         input_tensors.append(input_tensor)
         output_tensors.append(output_tensor)
         input_tensor, output_tensor = input_tensors.pop(0), output_tensors.pop(0)
-    
+  
         # Trigger gradient sync on the last microbatch but only when last rank (the one that has num_warmup_microbatches = 0) has finished computing its backward pass.
         if num_warmup_microbatches == 0 and is_last_iteration:
             model.require_backward_grad_sync = True
 
         input_tensor_grad = model.backward(input_tensor, output_tensor, output_tensor_grad)
-    
+  
         if is_last_iteration:
             input_tensor = None
             pipeline_communicate(operation='send_backward', tensor=input_tensor_grad, device=device, dtype=dtype)
@@ -1805,7 +1806,7 @@ GPU的目标是**通过利用计算/内存的这种分层组织，尽可能并�
 要运行内核，你还需要一个特定的代码部分，称为**主机代码 Host Code**，它在CPU/主机上执行，并负责准备数据分配和加载数据和代码。
 
 ```cpp
-// Host code            
+// Host code        
 void vecAdd(float* h_A, float *h_B, float *h_c, int n) {
     // Allocate vectors in device memory
     int size = n * sizeof(float);
