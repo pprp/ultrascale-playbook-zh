@@ -60,7 +60,7 @@
 - Scatter & ReduceScatter
 - 快速关注Ring AllReduce
 - Barrier 屏障
-- NCCL：NVIDIA 集体通信库
+- NCCL：NVIDIA 集合通信库
 
 ### 分布式训练性能分析
 - 内核

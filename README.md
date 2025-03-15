@@ -71,8 +71,8 @@ UltraScale Playbook 是一本关于规模化和增长的综合指南。本中文
 
 第五部分主要介绍了并行编程的基础知识和实践：
 
-- 集体操作（Collective Operation）：包括广播、全局归约、分散等基本操作
-- NCCL（NVIDIA Collective Communications Library）：NVIDIA的集体通信库详解
+- 集合操作（Collective Operation）：包括广播、全局归约、分发等基本操作
+- NCCL（NVIDIA Collective Communications Library）：NVIDIA的集合通信库详解
 - 性能分析与优化：使用PyTorch Profiler和NVIDIA Nsight Compute进行性能分析
 - 并行训练的数学模型：详细分析了通信开销和计算比率
 

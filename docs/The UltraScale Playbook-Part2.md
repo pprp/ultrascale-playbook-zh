@@ -20,7 +20,7 @@ $$
 
 其中 μ = mean(x),  σ² = var(x) 需要在 hidden dimension h 上计算。 
 
-尽管这些操作在计算上非常cheap，但它们仍然需要大量的activation memory，因为它们需要完整的隐藏维度。SP 允许我们通过沿 `序列维度seq` 分割来将这个内存负担分散到多个 GPU 上。
+尽管这些操作在计算上非常cheap，但它们仍然需要大量的activation memory，因为它们需要完整的隐藏维度。SP 允许我们通过沿 `序列维度seq` 分割来将这个内存负担分发到多个 GPU 上。
 
 在实践中，我们将从左图过渡到右图：
 
@@ -63,7 +63,7 @@ $$
 - 在纯 TP 的前向传播中，我们每个 Transformer 块有两个 all-reduce 操作，而在 SP 中，我们每个 Transformer 块有两个 all-gather 和两个 reduce-scatter 操作。所以 SP 的通信操作数量是 TP 的两倍。
 - 但是由于 all-reduce 操作可以被分解为 all-gather + reduce-scatter，它们在通信方面实际上是等效的。对于反向传播，只是使用每个操作的共轭（no-op = all-reduce 和 all-gather = reduce-scatter），推理方式相同。
 
-> 编者注：All-reduce 可以分解为 reduce-scatter 和 all-gather，因为 reduce-scatter 先归约并分散数据，all-gather 再收集完整结果。
+> 编者注：All-reduce 可以分解为 reduce-scatter 和 all-gather，因为 reduce-scatter 先归约并分发数据，all-gather 再收集完整结果。
 > 
 > 
 > ![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_2_image%206.png)
@@ -180,7 +180,7 @@ SoftMax 是按行计算的，这意味着每当 GPU 收到一行中的所有标�
 
 - GPU以环形模式交换KV对，每次传输一个数据块
 - 更节省内存，因为每个GPU只需临时存储一个数据块
-- 通信被分散并与计算重叠，尽管由于多次通信步骤会带来一些额外的基础延迟
+- 通信被分发并与计算重叠，尽管由于多次通信步骤会带来一些额外的基础延迟
 
 到目前为止，我们已经看到如何通过TP在单个节点上拆分模型以驯服大模型，以及如何利用CP应对长序列带来的激活值爆炸问题。
 

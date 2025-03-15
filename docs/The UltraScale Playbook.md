@@ -670,7 +670,7 @@ DP 能够将训练分布在不同的样本上，提供了一个并行化的第�
 
 ![](https://raw.githubusercontent.com/pprp/blogimagebed/main/image%2024.png)
 
-注意到，数据并行在达到一定规模后会开始出现通信开销的限制。对于这些更大的模型或更大的批量大小，我们有其他选择吗？幸运的是，确实有一些解决方案。这些方案要么是将一些张量转移到CPU上，要么是将权重、梯度以及优化器状态张量分散到多个GPU设备上！现在开始深入探讨这些方法吧。
+注意到，数据并行在达到一定规模后会开始出现通信开销的限制。对于这些更大的模型或更大的批量大小，我们有其他选择吗？幸运的是，确实有一些解决方案。这些方案要么是将一些张量转移到CPU上，要么是将权重、梯度以及优化器状态张量分发到多个GPU设备上！现在开始深入探讨这些方法吧。
 
 有两种主要的分割方法：
 
@@ -712,7 +712,7 @@ ZeRO 的理念是将这些对象在 DP Rank 的各个进程中分片Shard，每�
 
 在 ZeRO-1 中，优化器状态被划分为 $N_d$ 个相等的部分，其中 $N_d$  是 DP degree。这意味着每个模型副本在每个 DP 排名上只跟踪优化器状态的 $1/N_d$  。在优化步骤中，只有  $1/N_d$ 的 float32 权重被更新。
 
-然而，在正向传播过程中，每个副本都需要所有参，因此我们需要在优化器步骤之后添加一个额外的 `all-gather` 操作（这是我们遇到的第二种集体通信原语！）以确保每个模型副本都有完整的最新权重。
+然而，在正向传播过程中，每个副本都需要所有参，因此我们需要在优化器步骤之后添加一个额外的 `all-gather` 操作（这是我们遇到的第二种集合通信原语！）以确保每个模型副本都有完整的最新权重。
 
 这解释了我们在上面图表中看到的  $2\Psi + 2\Psi + \frac{k\Psi}{N_d}$  的内存公式！以下是单个训练步骤的操作序列摘要
 
@@ -722,11 +722,11 @@ ZeRO 的理念是将这些对象在 DP Rank 的各个进程中分片Shard，每�
 - 每个副本在其本地优化器步骤上执行一个优化器步骤（仅限于 $\frac{1}{N_d}$ 优化器状态），以获取更新的 $\frac{1}{N_d}$ fp32 参数，这些参数随后可以转换为 $\frac{1}{N_d}$完整 bf16 参数集。
 - 执行 bf16 参数的 `all-gather` 操作，将缺失的切片发送回每个副本。这是 ZeRO 中的新操作，在 vanilla DP 中未使用。
 
-> Reduce-Scatter: 结合了归约（Reduction）和分散（Scatter）两个步骤，用于在多个进程或节点之间对数据进行计算并分发结果(如下图所示）。
+> Reduce-Scatter: 结合了归约（Reduction）和分发（Scatter）两个步骤，用于在多个进程或节点之间对数据进行计算并分发结果(如下图所示）。
 >
 > - **归约（Reduction）**：将多个进程的数据按照某种操作（如求和、求最大值、求最小值等）合并成一个结果。
-> - **分散（Scatter）**：将结果分割并分发到各个进程，使得每个进程接收一部分数据。
-> - Reduce-Scatter 把这两个操作组合起来：先对所有进程的数据进行归约，然后将归约后的结果分散到各个进程。
+> - **分发（Scatter）**：将结果分割并分发到各个进程，使得每个进程接收一部分数据。
+> - Reduce-Scatter 把这两个操作组合起来：先对所有进程的数据进行归约，然后将归约后的结果分发到各个进程。
 >
 > All-Gather: 目标是收集所有进程的数据，并将这些数据分发给每个进程，使得每个进程最终拥有所有进程的完整数据副本:
 >
@@ -1043,7 +1043,7 @@ class RowParallelLinear(nn.Module):
 >
 > 通过执行块矩阵乘法与异步通信/计算相结合，可以部分隐藏这种通信。例如，Megatron-LM/Nanotron 实现了 all-reduce 与 FC1 计算的局部重叠，其中矩阵乘法结果的一部分将开始发送到其他 GPU，而另一部分仍在计算中。
 
-张量并行 TP 确实有助于减少矩阵乘法中的激活内存，因为中间激活被分散到多个 GPU 上。然而，我们仍然需要收集全量激活以进行如 **LayerNorm** 等操作，这意味着我们没有获得本可以得到的全部内存优势。
+张量并行 TP 确实有助于减少矩阵乘法中的激活内存，因为中间激活被分发到多个 GPU 上。然而，我们仍然需要收集全量激活以进行如 **LayerNorm** 等操作，这意味着我们没有获得本可以得到的全部内存优势。
 
 此外，TP 引入了显著的通信需求，这严重依赖于网络基础设施。无法完全隐藏这种特定的 All-Reduce 操作在计算背后的能力意味着它直接增加了前向传播的关键路径。
 
@@ -1101,7 +1101,7 @@ $$
 
 其中 μ = mean(x),  σ² = var(x) 需要在 hidden dimension h 上计算。
 
-尽管这些操作在计算上非常cheap，但它们仍然需要大量的activation memory，因为它们需要完整的隐藏维度。SP 允许我们通过沿 `序列维度seq` 分割来将这个内存负担分散到多个 GPU 上。
+尽管这些操作在计算上非常cheap，但它们仍然需要大量的activation memory，因为它们需要完整的隐藏维度。SP 允许我们通过沿 `序列维度seq` 分割来将这个内存负担分发到多个 GPU 上。
 
 在实践中，我们将从左图过渡到右图：
 
@@ -1144,7 +1144,7 @@ $$
 - 在纯 TP 的前向传播中，我们每个 Transformer 块有两个 all-reduce 操作，而在 SP 中，我们每个 Transformer 块有两个 all-gather 和两个 reduce-scatter 操作。所以 SP 的通信操作数量是 TP 的两倍。
 - 但是由于 all-reduce 操作可以被分解为 all-gather + reduce-scatter，它们在通信方面实际上是等效的。对于反向传播，只是使用每个操作的共轭（no-op = all-reduce 和 all-gather = reduce-scatter），推理方式相同。
 
-> 编者注：All-reduce 可以分解为 reduce-scatter 和 all-gather，因为 reduce-scatter 先归约并分散数据，all-gather 再收集完整结果。
+> 编者注：All-reduce 可以分解为 reduce-scatter 和 all-gather，因为 reduce-scatter 先归约并分发数据，all-gather 再收集完整结果。
 >
 > ![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_2_image%206.png)
 
@@ -1254,7 +1254,7 @@ SoftMax 是按行计算的，这意味着每当 GPU 收到一行中的所有标�
 
 - GPU以环形模式交换KV对，每次传输一个数据块
 - 更节省内存，因为每个GPU只需临时存储一个数据块
-- 通信被分散并与计算重叠，尽管由于多次通信步骤会带来一些额外的基础延迟
+- 通信被分发并与计算重叠，尽管由于多次通信步骤会带来一些额外的基础延迟
 
 到目前为止，我们已经看到如何通过TP在单个节点上拆分模型以驯服大模型，以及如何利用CP应对长序列带来的激活值爆炸问题。
 
@@ -2255,7 +2255,7 @@ Flash Attention 是一个典型案例，展示了当深入考虑当前GPU加速�
 
 ## 并行编程速成
 
-将LLM训练从单个GPU扩展到数百个GPU需要在所有机器之间进行权重、梯度和数据的通信与同步。有一组分布式模式可以实现这一点，称为***集体操作 Collective Operation***。在本节中，将进行一个小型的速成课程，涵盖诸如*广播 BroadCast、全局归约 AllReduce、分散 Scatter* 等操作。
+将LLM训练从单个GPU扩展到数百个GPU需要在所有机器之间进行权重、梯度和数据的通信与同步。有一组分布式模式可以实现这一点，称为***集合操作 Collective Operation***。在本节中，将进行一个小型的速成课程，涵盖诸如*广播 BroadCast、全局归约 AllReduce、分发 Scatter* 等操作。
 
 现在，我们有许多独立的节点，可以是CPU核心、GPU或计算节点。每个节点执行一些计算，然后我们希望将结果或其部分传输到其他节点，用于下一个计算步骤（t+1）。
 
@@ -2269,7 +2269,7 @@ Flash Attention 是一个典型案例，展示了当深入考虑当前GPU加速�
 
 ![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%202.png)
 
-PyTorch原生提供了集体操作 Collective Operation，因此可以很容易地编写一个小例子来演示广播是如何工作的。我们首先需要使用 `dist.init_process_group`初始化一个进程组，设置通信后端（稍后我们将讨论NCCL），确定存在多少个 Workers（aka Nodes），并为每个工作者分配一个Rank（我们可以用 `dist.get_rank`获取）。最后，它在工作者之间建立连接。
+PyTorch原生提供了集合操作 Collective Operation，因此可以很容易地编写一个小例子来演示广播是如何工作的。我们首先需要使用 `dist.init_process_group`初始化一个进程组，设置通信后端（稍后我们将讨论NCCL），确定存在多少个 Workers（aka Nodes），并为每个工作者分配一个Rank（我们可以用 `dist.get_rank`获取）。最后，它在工作者之间建立连接。
 
 为了展示 `dist.broadcast`操作，让我们创建一个张量，在 `rank=0`上有非零值，并在其他工作者上创建全零张量。然后，我们使用 `dist.broadcast(tensor, src=0)`将 `rank=0`的张量分发到所有其他排名：
 
@@ -2602,11 +2602,11 @@ Rank 2 after barrier time delta: 2.0024
 
 在转向实际分布式训练实现之前，先来了解：NCCL到底是什么？
 
-### NCCL：NVIDIA 集体通信库
+### NCCL：NVIDIA 集合通信库
 
 当在许多GPU上训练大型模型时，经常会遇到NCCL！那是什么？
 
-有几个实现集体通信 Collective Communication 的库，并得到PyTorch的支持：有经典的***MPI***（消息传递接口），有Meta的***Gloo***，最后还有 **NCCL**（NVIDIA集体通信库）。它们在集体通信模式方面提供类似的功能，但针对不同的硬件设置进行了优化；NCCL设计用于有效地服务GPU-GPU通信，而MPI和Gloo则设置为CPU-CPU或CPU-GPU通信。PyTorch提供了一个[很好的指南](https://pytorch.org/docs/stable/distributed.html#which-backend-to-use) [2] 来决定使用哪一个：
+有几个实现集合通信 Collective Communication 的库，并得到PyTorch的支持：有经典的***MPI***（消息传递接口），有Meta的***Gloo***，最后还有 **NCCL**（NVIDIA集合通信库）。它们在集合通信模式方面提供类似的功能，但针对不同的硬件设置进行了优化；NCCL设计用于有效地服务GPU-GPU通信，而MPI和Gloo则设置为CPU-CPU或CPU-GPU通信。PyTorch提供了一个[很好的指南](https://pytorch.org/docs/stable/distributed.html#which-backend-to-use) [2] 来决定使用哪一个：
 
 - GPU训练：使用NCCL
 - CPU训练：使用Gloo

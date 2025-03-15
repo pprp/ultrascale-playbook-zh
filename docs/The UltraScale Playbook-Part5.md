@@ -9,7 +9,7 @@
 
 ## 并行编程速成
 
-将LLM训练从单个GPU扩展到数百个GPU需要在所有机器之间进行权重、梯度和数据的通信与同步。有一组分布式模式可以实现这一点，称为***集体操作 Collective Operation***。在本节中，将进行一个小型的速成课程，涵盖诸如*广播 BroadCast、全局归约 AllReduce、分散 Scatter* 等操作。
+将LLM训练从单个GPU扩展到数百个GPU需要在所有机器之间进行权重、梯度和数据的通信与同步。有一组分布式模式可以实现这一点，称为***集合操作 Collective Operation***。在本节中，将进行一个小型的速成课程，涵盖诸如*广播 BroadCast、全局归约 AllReduce、分发 Scatter* 等操作。
 
 现在，我们有许多独立的节点，可以是CPU核心、GPU或计算节点。每个节点执行一些计算，然后我们希望将结果或其部分传输到其他节点，用于下一个计算步骤（t+1）。
 
@@ -23,7 +23,7 @@
 
 ![](https://raw.githubusercontent.com/pprp/blogimagebed/main/part_5_image%202.png)
 
-PyTorch原生提供了集体操作 Collective Operation，因此可以很容易地编写一个小例子来演示广播是如何工作的。我们首先需要使用 `dist.init_process_group`初始化一个进程组，设置通信后端（稍后我们将讨论NCCL），确定存在多少个 Workers（aka Nodes），并为每个工作者分配一个Rank（我们可以用 `dist.get_rank`获取）。最后，它在工作者之间建立连接。
+PyTorch原生提供了集合操作 Collective Operation，因此可以很容易地编写一个小例子来演示广播是如何工作的。我们首先需要使用 `dist.init_process_group`初始化一个进程组，设置通信后端（稍后我们将讨论NCCL），确定存在多少个 Workers（aka Nodes），并为每个工作者分配一个Rank（我们可以用 `dist.get_rank`获取）。最后，它在工作者之间建立连接。
 
 为了展示 `dist.broadcast`操作，让我们创建一个张量，在 `rank=0`上有非零值，并在其他工作者上创建全零张量。然后，我们使用 `dist.broadcast(tensor, src=0)`将 `rank=0`的张量分发到所有其他排名：
 
@@ -356,11 +356,11 @@ Rank 2 after barrier time delta: 2.0024
 
 在转向实际分布式训练实现之前，先来了解：NCCL到底是什么？
 
-### **NCCL：NVIDIA Collective Communications LibraryNCCL：NVIDIA 集体通信库**
+### **NCCL：NVIDIA Collective Communications LibraryNCCL：NVIDIA 集合通信库**
 
 当在许多GPU上训练大型模型时，经常会遇到NCCL！那是什么？
 
-有几个实现集体通信 Collective Communication 的库，并得到PyTorch的支持：有经典的***MPI***（消息传递接口），有Meta的***Gloo***，最后还有 **NCCL**（NVIDIA集体通信库）。它们在集体通信模式方面提供类似的功能，但针对不同的硬件设置进行了优化；NCCL设计用于有效地服务GPU-GPU通信，而MPI和Gloo则设置为CPU-CPU或CPU-GPU通信。PyTorch提供了一个[很好的指南](https://pytorch.org/docs/stable/distributed.html#which-backend-to-use) [2] 来决定使用哪一个：
+有几个实现集合通信 Collective Communication 的库，并得到PyTorch的支持：有经典的***MPI***（消息传递接口），有Meta的***Gloo***，最后还有 **NCCL**（NVIDIA集合通信库）。它们在集合通信模式方面提供类似的功能，但针对不同的硬件设置进行了优化；NCCL设计用于有效地服务GPU-GPU通信，而MPI和Gloo则设置为CPU-CPU或CPU-GPU通信。PyTorch提供了一个[很好的指南](https://pytorch.org/docs/stable/distributed.html#which-backend-to-use) [2] 来决定使用哪一个：
 
 - GPU训练：使用NCCL
 - CPU训练：使用Gloo
